@@ -6,7 +6,10 @@
   "main": "web-app/Module.js",
   "author": "",
   "license": "ISC",
-  "dependencies": {
+  "scripts": {
+    "test": "mocha"
+},
+"dependencies": {
     "ramda": "^0.32.0"
   },
   "devDependencies": {
