@@ -1,0 +1,247 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #111;
+    color: #f0f0f0;
+    font-family: sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+header h1 {
+    font-size: 2rem;
+    color: #b8860b;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+header p {
+    color: #888;
+    margin-top: 4px;
+}
+
+main {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+}
+
+/* Score bar */
+#scorebar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.score-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+}
+
+.score-label {
+    font-size: 0.7rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.score-value {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #b8860b;
+}
+
+.score-sub {
+    font-size: 0.65rem;
+    color: #555;
+}
+
+/* Turn indicator */
+#turn-label {
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #b8860b;
+    text-align: center;
+    min-height: 1.2em;
+}
+
+/* Result message */
+#result-msg {
+    background: #1e1e1e;
+    border-left: 4px solid #b8860b;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    color: #ddd;
+    width: 100%;
+    display: none;
+}
+
+/* Cards area */
+#cards-area {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.card-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.card-slot h2 {
+    font-size: 0.85rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.vs-label {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #444;
+    align-self: center;
+    padding-top: 40px;
+}
+
+/* Stat info line */
+#stat-info {
+    color: #b8860b;
+    font-size: 0.9rem;
+    text-align: center;
+    font-weight: bold;
+    min-height: 1.2em;
+}
+
+/* Phase sections */
+section {
+    width: 100%;
+    text-align: center;
+}
+
+section h2 {
+    font-size: 1rem;
+    color: #aaa;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Buttons */
+.btn-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+button {
+    background: #b8860b;
+    color: #111;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #d4a017;
+}
+
+button:focus-visible {
+    outline: 3px solid #d4a017;
+    outline-offset: 2px;
+}
+
+.btn-danger {
+    background: #6b1a1a;
+    color: #f0f0f0;
+}
+
+.btn-danger:hover {
+    background: #8b2020;
+}
+
+/* Bet controls */
+.bet-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.bet-controls label {
+    font-size: 1rem;
+    color: #ccc;
+}
+
+input[type="range"] {
+    width: 220px;
+    accent-color: #b8860b;
+    cursor: pointer;
+}
+
+/* CPU thinking */
+#cpu-thinking {
+    color: #888;
+    font-style: italic;
+    font-size: 1rem;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Game over */
+#phase-gameover {
+    background: #1a1a1a;
+    border: 2px solid #b8860b;
+    border-radius: 12px;
+    padding: 30px;
+}
+
+#phase-gameover h2 {
+    font-size: 1.8rem;
+    color: #b8860b;
+    margin-bottom: 10px;
+}
+
+#gameover-msg {
+    font-size: 1.1rem;
+    color: #ddd;
+    margin-bottom: 20px;
+}

@@ -7,3 +7,117 @@
 <link rel="stylesheet" href="default.css"> <!-- Import style sheet – default.css -->
 <link rel="icon" href="./assets/favicon.png"> <!-- Import 'Favorites Icon' – favicon.png -->
 <script type="module" src="main.js"></script> <!-- Load the main script. Must be type="module". Have only one of these -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celebrity Top Trumps</title>
+    <link rel="stylesheet" href="default.css">
+</head>
+<body>
+
+<header>
+    <h1>Celebrity Top Trumps</h1>
+    <p>Choose a stat, place your bet, and beat the CPU!</p>
+</header>
+
+<main>
+
+    <!-- Score bar -->
+    <section id="scorebar" aria-label="Game stats">
+        <div class="score-block">
+            <span class="score-label">Your coins</span>
+            <span class="score-value" id="player-coins">100</span>
+        </div>
+        <div class="score-block">
+            <span class="score-label">Your cards</span>
+            <span class="score-value" id="player-cards">16</span>
+        </div>
+        <div class="score-block fold-block">
+            <span class="score-label">Your folds</span>
+            <span class="score-value" id="player-folds">0</span>
+            <span class="score-sub">/ 2 max</span>
+        </div>
+        <div class="score-block">
+            <span class="score-label">CPU coins</span>
+            <span class="score-value" id="cpu-coins">100</span>
+        </div>
+        <div class="score-block">
+            <span class="score-label">CPU cards</span>
+            <span class="score-value" id="cpu-cards">16</span>
+        </div>
+        <div class="score-block fold-block">
+            <span class="score-label">CPU folds</span>
+            <span class="score-value" id="cpu-folds">0</span>
+            <span class="score-sub">/ 2 max</span>
+        </div>
+    </section>
+
+    <!-- Turn indicator -->
+    <p id="turn-label" aria-live="polite"></p>
+
+    <!-- Result message -->
+    <p id="result-msg" role="alert" aria-live="polite"></p>
+
+    <!-- Cards area -->
+    <section id="cards-area" aria-label="Cards in play">
+        <div class="card-slot">
+            <h2>Your card</h2>
+            <div id="player-card"></div>
+        </div>
+        <div class="vs-label" aria-hidden="true">VS</div>
+        <div class="card-slot">
+            <h2>CPU card</h2>
+            <div id="cpu-card"></div>
+        </div>
+    </section>
+
+    <!-- Stat info line -->
+    <p id="stat-info"></p>
+
+    <!-- Phase: choose stat -->
+    <section id="phase-choose" aria-label="Choose a stat">
+        <h2>Choose a stat to compare</h2>
+        <div class="btn-group">
+            <button id="btn-fame">Fame</button>
+            <button id="btn-popularity">Popularity</button>
+            <button id="btn-legacy">Legacy</button>
+            <button id="btn-power">Power</button>
+            <button id="btn-influence">Influence</button>
+            <button id="btn-wealth">Wealth</button>
+        </div>
+    </section>
+
+    <!-- Phase: place bet -->
+    <section id="phase-bet" aria-label="Place your bet">
+        <h2>Place your bet</h2>
+        <p>Max bet: <strong id="bet-max">10</strong> coins</p>
+        <div class="bet-controls">
+            <label for="bet-amount">Bet amount: <strong id="bet-display">1</strong></label>
+            <input type="range" id="bet-amount" min="1" max="10" value="1" aria-label="Bet amount">
+        </div>
+        <div class="btn-group">
+            <button id="btn-place-bet">Confirm bet</button>
+            <button id="btn-fold-after-bet" class="btn-danger">Fold (lose card, keep coins)</button>
+        </div>
+    </section>
+
+    <!-- Phase: cpu responding -->
+    <section id="phase-resolve" aria-label="CPU thinking">
+        <p id="cpu-thinking"></p>
+    </section>
+
+    <!-- Phase: game over -->
+    <section id="phase-gameover" aria-label="Game over">
+        <h2>Game Over</h2>
+        <p id="gameover-msg"></p>
+        <button id="btn-restart">Play again</button>
+    </section>
+
+</main>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
