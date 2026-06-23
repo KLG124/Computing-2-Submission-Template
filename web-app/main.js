@@ -1,3 +1,5 @@
+import R from "./ramda.js";
+
 /*jslint browser*/
 
 import {
@@ -273,7 +275,7 @@ const renderStatButtons = function (card, selectedStat, interactive) {
         if (!interactive) {
             disabled = "disabled";
         }
-        return `<button class="stat-btn ${selected}"
+        return `<button class="stat-btn ${selected}" 
                         data-stat="${key}" ${disabled}>
             <span class="label">${key}</span>
             <span class="val">${card.stats[key]}</span>

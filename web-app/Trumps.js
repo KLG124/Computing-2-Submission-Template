@@ -1,66 +1,492 @@
-/*jslint node*/
+/*jslint browser*/
 
-import assert from "assert";
-import { describe, it } from "mocha";
-import {
-    canFold,
-    chooseStat,
-    clampBet,
-    cpuLead,
-    cpuLeadBet,
-    cpuRespondDecision,
-    fold,
-    MAX_BET,
-    MIN_BET,
-    newGame,
-    nextRound,
-    other,
-    placeLeadBet,
-    resolveRound,
-    respond,
-    STARTING_COINS
-} from "../Trumps.js";
+/**
+ * Celebrity Top Trumps with poker-style betting.
+ *
+ * Two players (a human and a CPU) are each dealt half the deck. On each round
+ * the leader picks a stat and a bet; the other player can match the bet or
+ * fold. The higher value in the chosen stat wins the pot and the opponent's
+ * card. Whoever wins a round leads the next one. The game ends when a player
+ * runs out of cards or coins.
+ *
+ * Every exported function is pure: it takes a state and returns a new state
+ * without mutating its input. The only exception is newGame, which shuffles
+ * the deck and therefore uses randomness by necessity.
+ *
+ * @module CelebTrumps
+ * @author Kaiyu
+ * @version 2025/26
+ */
 
-// A small, predictable two-card-each state for the resolve/fold tests.
-const rigged = function () {
-    const strong = {
-        name: "Strong",
-        flag: "🇬🇧",
-        tier: "gold",
-        rating: 90,
+const STARTING_COINS = 200;
+const MIN_BET = 5;
+const MAX_BET = 25;
+const MAX_FOLD_STREAK = 2;
+
+const CPU_CALL_BASE = 46;
+const CPU_CALL_PER_COIN = 1.9;
+
+const CPU_CALL_BLUFF_CHANCE = 0.15;
+const CPU_LEAD_BLUFF_CHANCE = 0.15;
+const CPU_LEAD_BLUFF_BET = MAX_BET;
+
+const CPU_LEAD_MIN_VALUE = 75;
+const CPU_LEAD_MAX_VALUE = 88;
+
+const STAT_KEYS = [
+    "fame", "popularity", "legacy", "power", "influence", "wealth"
+];
+
+const cards = [
+    {
+        name: "Ed Sheeran", flag: "🇬🇧", tier: "gold", rating: 78,
         stats: {
-            fame: 90,
-            popularity: 50,
-            legacy: 50,
-            power: 50,
-            influence: 50,
-            wealth: 50
+            fame: 78, popularity: 80, legacy: 70,
+            power: 55, influence: 78, wealth: 85
         }
-    };
-
-    const weak = {
-        name: "Weak",
-        flag: "🇺🇸",
-        tier: "gold",
-        rating: 50,
+    },
+    {
+        name: "Eminem", flag: "🇺🇸", tier: "gold", rating: 79,
         stats: {
-            fame: 10,
-            popularity: 50,
-            legacy: 50,
-            power: 50,
-            influence: 50,
-            wealth: 50
+            fame: 79, popularity: 82, legacy: 82,
+            power: 50, influence: 80, wealth: 78
         }
-    };
+    },
+    {
+        name: "Adele", flag: "🇬🇧", tier: "gold", rating: 77,
+        stats: {
+            fame: 77, popularity: 81, legacy: 75,
+            power: 45, influence: 72, wealth: 76
+        }
+    },
+    {
+        name: "Kanye West", flag: "🇺🇸", tier: "gold", rating: 76,
+        stats: {
+            fame: 76, popularity: 60, legacy: 79,
+            power: 62, influence: 81, wealth: 79
+        }
+    },
+    {
+        name: "Justin Bieber", flag: "🇨🇦", tier: "gold", rating: 76,
+        stats: {
+            fame: 76, popularity: 78, legacy: 62,
+            power: 48, influence: 72, wealth: 77
+        }
+    },
+    {
+        name: "Bob Marley", flag: "🇯🇲", tier: "gold", rating: 75,
+        stats: {
+            fame: 75, popularity: 82, legacy: 78,
+            power: 40, influence: 83, wealth: 36
+        }
+    },
+    {
+        name: "Rihanna", flag: "🇧🇧", tier: "gold", rating: 74,
+        stats: {
+            fame: 74, popularity: 85, legacy: 72,
+            power: 78, influence: 80, wealth: 88
+        }
+    },
+    {
+        name: "Beyoncé", flag: "🇺🇸", tier: "gold", rating: 79,
+        stats: {
+            fame: 79, popularity: 89, legacy: 82,
+            power: 72, influence: 84, wealth: 82
+        }
+    },
+    {
+        name: "Tom Hanks", flag: "🇺🇸", tier: "gold", rating: 78,
+        stats: {
+            fame: 78, popularity: 86, legacy: 80,
+            power: 55, influence: 75, wealth: 80
+        }
+    },
+    {
+        name: "Leo DiCaprio", flag: "🇺🇸", tier: "gold", rating: 79,
+        stats: {
+            fame: 79, popularity: 78, legacy: 76,
+            power: 58, influence: 80, wealth: 84
+        }
+    },
+    {
+        name: "Tom Cruise", flag: "🇺🇸", tier: "gold", rating: 77,
+        stats: {
+            fame: 77, popularity: 75, legacy: 75,
+            power: 59, influence: 76, wealth: 85
+        }
+    },
+    {
+        name: "Johnny Depp", flag: "🇺🇸", tier: "gold", rating: 76,
+        stats: {
+            fame: 76, popularity: 72, legacy: 70,
+            power: 45, influence: 68, wealth: 72
+        }
+    },
+    {
+        name: "Oprah Winfrey", flag: "🇺🇸", tier: "gold", rating: 79,
+        stats: {
+            fame: 79, popularity: 82, legacy: 76,
+            power: 78, influence: 80, wealth: 82
+        }
+    },
+    {
+        name: "Kim Kardashian", flag: "🇺🇸", tier: "gold", rating: 78,
+        stats: {
+            fame: 78, popularity: 71, legacy: 55,
+            power: 65, influence: 78, wealth: 81
+        }
+    },
+    {
+        name: "Brad Pitt", flag: "🇺🇸", tier: "gold", rating: 75,
+        stats: {
+            fame: 75, popularity: 72, legacy: 70,
+            power: 52, influence: 68, wealth: 80
+        }
+    },
+    {
+        name: "Will Smith", flag: "🇺🇸", tier: "gold", rating: 74,
+        stats: {
+            fame: 74, popularity: 75, legacy: 72,
+            power: 55, influence: 72, wealth: 82
+        }
+    },
+    {
+        name: "Serena Williams", flag: "🇺🇸", tier: "gold", rating: 74,
+        stats: {
+            fame: 74, popularity: 75, legacy: 80,
+            power: 55, influence: 72, wealth: 70
+        }
+    },
+    {
+        name: "Tiger Woods", flag: "🇺🇸", tier: "gold", rating: 73,
+        stats: {
+            fame: 73, popularity: 70, legacy: 80,
+            power: 60, influence: 70, wealth: 75
+        }
+    },
+    {
+        name: "Muhammad Ali", flag: "🇺🇸", tier: "gold", rating: 79,
+        stats: {
+            fame: 79, popularity: 86, legacy: 83,
+            power: 45, influence: 78, wealth: 58
+        }
+    },
+    {
+        name: "Usain Bolt", flag: "🇯🇲", tier: "gold", rating: 75,
+        stats: {
+            fame: 75, popularity: 78, legacy: 85,
+            power: 40, influence: 72, wealth: 70
+        }
+    },
+    {
+        name: "Mike Tyson", flag: "🇺🇸", tier: "gold", rating: 74,
+        stats: {
+            fame: 74, popularity: 79, legacy: 80,
+            power: 56, influence: 70, wealth: 56
+        }
+    },
+    {
+        name: "David Beckham", flag: "🇬🇧", tier: "gold", rating: 72,
+        stats: {
+            fame: 72, popularity: 75, legacy: 73,
+            power: 59, influence: 76, wealth: 83
+        }
+    },
+    {
+        name: "Stephen Hawking", flag: "🇬🇧", tier: "gold", rating: 71,
+        stats: {
+            fame: 71, popularity: 79, legacy: 86,
+            power: 38, influence: 78, wealth: 54
+        }
+    },
+    {
+        name: "Isaac Newton", flag: "🇬🇧", tier: "gold", rating: 74,
+        stats: {
+            fame: 74, popularity: 73, legacy: 88,
+            power: 36, influence: 80, wealth: 47
+        }
+    },
+    {
+        name: "Napoleon", flag: "🇫🇷", tier: "gold", rating: 82,
+        stats: {
+            fame: 70, popularity: 64, legacy: 87,
+            power: 94, influence: 78, wealth: 82
+        }
+    },
+    {
+        name: "Leonardo da Vinci", flag: "🇮🇹", tier: "gold", rating: 69,
+        stats: {
+            fame: 69, popularity: 78, legacy: 85,
+            power: 42, influence: 82, wealth: 55
+        }
+    },
+    {
+        name: "Bill Gates", flag: "🇺🇸", tier: "gold", rating: 68,
+        stats: {
+            fame: 68, popularity: 78, legacy: 82,
+            power: 85, influence: 75, wealth: 97
+        }
+    },
+    {
+        name: "Mark Zuckerberg", flag: "🇺🇸", tier: "gold", rating: 67,
+        stats: {
+            fame: 64, popularity: 55, legacy: 79,
+            power: 86, influence: 82, wealth: 96
+        }
+    },
+    {
+        name: "Barack Obama", flag: "🇺🇸", tier: "gold", rating: 76,
+        stats: {
+            fame: 76, popularity: 78, legacy: 85,
+            power: 93, influence: 78, wealth: 72
+        }
+    },
+    {
+        name: "Mr Beast", flag: "🇺🇸", tier: "gold", rating: 66,
+        stats: {
+            fame: 66, popularity: 78, legacy: 52,
+            power: 48, influence: 72, wealth: 85
+        }
+    },
+    {
+        name: "Jackie Chan", flag: "🇭🇰", tier: "gold", rating: 67,
+        stats: {
+            fame: 64, popularity: 77, legacy: 75,
+            power: 40, influence: 71, wealth: 72
+        }
+    },
+    {
+        name: "Stan Lee", flag: "🇺🇸", tier: "gold", rating: 65,
+        stats: {
+            fame: 62, popularity: 76, legacy: 80,
+            power: 53, influence: 78, wealth: 68
+        }
+    },
 
-    const p2 = Object.assign({}, strong, {name: "P2"});
-    const c2 = Object.assign({}, weak, {name: "C2"});
+    // ── Black tier ───────────────────────────────────────────────────────────
+    {
+        name: "The Rock", flag: "🇺🇸", tier: "black", rating: 84,
+        stats: {
+            fame: 85, popularity: 89, legacy: 78,
+            power: 76, influence: 79, wealth: 86
+        }
+    },
+    {
+        name: "Taylor Swift", flag: "🇺🇸", tier: "black", rating: 83,
+        stats: {
+            fame: 84, popularity: 90, legacy: 79,
+            power: 58, influence: 88, wealth: 89
+        }
+    },
+    {
+        name: "Elon Musk", flag: "🇺🇸", tier: "black", rating: 83,
+        stats: {
+            fame: 83, popularity: 62, legacy: 74,
+            power: 97, influence: 86, wealth: 99
+        }
+    },
+    {
+        name: "Albert Einstein", flag: "🇩🇪", tier: "black", rating: 82,
+        stats: {
+            fame: 82, popularity: 79, legacy: 94,
+            power: 46, influence: 98, wealth: 41
+        }
+    },
+    {
+        name: "Beethoven", flag: "🇩🇪", tier: "black", rating: 82,
+        stats: {
+            fame: 82, popularity: 74, legacy: 90,
+            power: 38, influence: 88, wealth: 42
+        }
+    },
+    {
+        name: "Elvis Presley", flag: "🇺🇸", tier: "black", rating: 81,
+        stats: {
+            fame: 81, popularity: 92, legacy: 78,
+            power: 55, influence: 82, wealth: 72
+        }
+    },
+    {
+        name: "Charlie Chaplin", flag: "🇬🇧", tier: "black", rating: 80,
+        stats: {
+            fame: 80, popularity: 82, legacy: 81,
+            power: 40, influence: 79, wealth: 71
+        }
+    },
+    {
+        name: "Princess Diana", flag: "🇬🇧", tier: "black", rating: 89,
+        stats: {
+            fame: 92, popularity: 95, legacy: 88,
+            power: 60, influence: 85, wealth: 80
+        }
+    },
+    {
+        name: "Shakespeare", flag: "🇬🇧", tier: "black", rating: 88,
+        stats: {
+            fame: 90, popularity: 75, legacy: 90,
+            power: 42, influence: 88, wealth: 44
+        }
+    },
+    {
+        name: "Julius Caesar", flag: "🏛️", tier: "black", rating: 88,
+        stats: {
+            fame: 92, popularity: 72, legacy: 91,
+            power: 97, influence: 89, wealth: 87
+        }
+    },
+    {
+        name: "Marilyn Monroe", flag: "🇺🇸", tier: "black", rating: 87,
+        stats: {
+            fame: 91, popularity: 89, legacy: 85,
+            power: 46, influence: 82, wealth: 66
+        }
+    },
+    {
+        name: "LeBron James", flag: "🇺🇸", tier: "black", rating: 86,
+        stats: {
+            fame: 93, popularity: 84, legacy: 89,
+            power: 60, influence: 82, wealth: 96
+        }
+    },
+    {
+        name: "Gandhi", flag: "🇮🇳", tier: "black", rating: 86,
+        stats: {
+            fame: 89, popularity: 81, legacy: 82,
+            power: 68, influence: 91, wealth: 26
+        }
+    },
+    {
+        name: "Abraham Lincoln", flag: "🇺🇸", tier: "black", rating: 85,
+        stats: {
+            fame: 88, popularity: 87, legacy: 94,
+            power: 96, influence: 92, wealth: 62
+        }
+    },
+    {
+        name: "Cleopatra", flag: "🇪🇬", tier: "black", rating: 85,
+        stats: {
+            fame: 86, popularity: 79, legacy: 87,
+            power: 95, influence: 84, wealth: 95
+        }
+    },
 
+    // ── Red tier ─────────────────────────────────────────────────────────────
+    {
+        name: "Jesus Christ", flag: "✝️", tier: "red", rating: 98,
+        stats: {
+            fame: 99, popularity: 89, legacy: 99,
+            power: 98, influence: 99, wealth: 42
+        }
+    },
+    {
+        name: "Buddha", flag: "☸️", tier: "red", rating: 97,
+        stats: {
+            fame: 95, popularity: 90, legacy: 98,
+            power: 85, influence: 97, wealth: 24
+        }
+    },
+    {
+        name: "Michael Jackson", flag: "🇺🇸", tier: "red", rating: 92,
+        stats: {
+            fame: 98, popularity: 94, legacy: 97,
+            power: 54, influence: 86, wealth: 86
+        }
+    },
+    {
+        name: "Cristiano Ronaldo", flag: "🇵🇹", tier: "red", rating: 91,
+        stats: {
+            fame: 97, popularity: 93, legacy: 98,
+            power: 62, influence: 95, wealth: 96
+        }
+    },
+    {
+        name: "Donald Trump", flag: "🇺🇸", tier: "red", rating: 90,
+        stats: {
+            fame: 96, popularity: 50, legacy: 76,
+            power: 99, influence: 96, wealth: 90
+        }
+    },
+    {
+        name: "Lionel Messi", flag: "🇦🇷", tier: "red", rating: 90,
+        stats: {
+            fame: 95, popularity: 89, legacy: 97,
+            power: 54, influence: 96, wealth: 92
+        }
+    }
+];
+
+const getCards = function () {
+    return cards.slice();
+};
+
+const getStatKeys = function () {
+    return STAT_KEYS.slice();
+};
+
+const other = function (who) {
+    if (who === "player") {
+        return "cpu";
+    }
+    return "player";
+};
+
+const shuffle = function (list) {
+    const copy = list.slice();
+    let i = copy.length - 1;
+    while (i > 0) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = temp;
+        i -= 1;
+    }
+    return copy;
+};
+
+const highestStat = function (card) {
+    return STAT_KEYS.reduce(function (best, key) {
+        if (card.stats[key] > card.stats[best]) {
+            return key;
+        }
+        return best;
+    }, STAT_KEYS[0]);
+};
+
+const clampBet = function (amount, coins) {
+    const top = Math.min(MAX_BET, coins);
+    const floor = Math.min(MIN_BET, coins);
+    if (amount < floor) {
+        return floor;
+    }
+    if (amount > top) {
+        return top;
+    }
+    return amount;
+};
+
+const cpuLeadBet = function (value) {
+    const span = CPU_LEAD_MAX_VALUE - CPU_LEAD_MIN_VALUE;
+    let frac = 0;
+    if (span > 0) {
+        frac = (value - CPU_LEAD_MIN_VALUE) / span;
+    }
+    if (frac < 0) {
+        frac = 0;
+    }
+    if (frac > 1) {
+        frac = 1;
+    }
+    return MIN_BET + Math.round(frac * (MAX_BET - MIN_BET));
+};
+
+const newGame = function () {
+    const shuffled = shuffle(cards);
+    const half = Math.floor(shuffled.length / 2);
     return {
-        playerDeck: [strong, p2],
-        cpuDeck: [weak, c2],
-        playerCoins: 100,
-        cpuCoins: 100,
+        playerDeck: shuffled.slice(0, half),
+        cpuDeck: shuffled.slice(half, half * 2),
+        playerCoins: STARTING_COINS,
+        cpuCoins: STARTING_COINS,
         playerFolds: 0,
         cpuFolds: 0,
         turn: "player",
@@ -71,349 +497,317 @@ const rigged = function () {
         pot: 0,
         roundWinner: null,
         winner: null,
-        message: ""
+        revealPlayer: null,
+        revealCpu: null,
+        revealStat: null,
+        resultKind: null,
+        message: "New game. You lead the first round."
     };
 };
 
-describe("newGame", function () {
-
-    it("gives both players the same number of cards", function () {
-        const state = newGame();
-        assert.strictEqual(state.playerDeck.length, state.cpuDeck.length);
+const chooseStat = function (state, stat) {
+    if (state.phase !== "choose" || !STAT_KEYS.includes(stat)) {
+        return state;
+    }
+    return Object.assign({}, state, {
+        chosenStat: stat,
+        phase: "lead_bet"
     });
+};
 
-    it("starts both players on the configured coin total", function () {
-        const state = newGame();
-        assert.strictEqual(state.playerCoins, STARTING_COINS);
-        assert.strictEqual(state.cpuCoins, STARTING_COINS);
+const placeLeadBet = function (state, amount) {
+    if (state.phase !== "lead_bet") {
+        return state;
+    }
+    const leader = state.turn;
+    let coins;
+    let betField;
+
+    if (leader === "player") {
+        coins = state.playerCoins;
+        betField = "playerBet";
+    } else {
+        coins = state.cpuCoins;
+        betField = "cpuBet";
+    }
+
+    const bet = clampBet(amount, coins);
+    const nextState = Object.assign({}, state, {
+        phase: "respond"
     });
+    nextState[betField] = bet;
 
-    it("lets the player lead first", function () {
-        assert.strictEqual(newGame().turn, "player");
+    return nextState;
+};
+
+const cpuLead = function (state, roll) {
+    if (state.phase !== "choose" || state.turn !== "cpu") {
+        return state;
+    }
+    const card = state.cpuDeck[0];
+    const stat = highestStat(card);
+    const value = card.stats[stat];
+
+    let wanted;
+    if (roll < CPU_LEAD_BLUFF_CHANCE) {
+        wanted = CPU_LEAD_BLUFF_BET;
+    } else {
+        wanted = cpuLeadBet(value);
+    }
+
+    const bet = clampBet(wanted, state.cpuCoins);
+
+    return Object.assign({}, state, {
+        chosenStat: stat,
+        cpuBet: bet,
+        phase: "respond",
+        message: "CPU leads."
     });
+};
 
-});
+const resolveRound = function (state) {
+    const playerCard = state.playerDeck[0];
+    const cpuCard = state.cpuDeck[0];
+    const stat = state.chosenStat;
+    const playerValue = playerCard.stats[stat];
+    const cpuValue = cpuCard.stats[stat];
+    const pot = state.playerBet + state.cpuBet;
 
-describe("chooseStat", function () {
+    const base = {
+        pot,
+        playerBet: 0,
+        cpuBet: 0,
+        playerFolds: 0,
+        cpuFolds: 0,
+        lastFold: null,
+        revealPlayer: playerCard,
+        revealCpu: cpuCard,
+        revealStat: stat,
+        phase: "resolved"
+    };
 
-    it("records the stat and moves to the bet phase", function () {
-        const state = chooseStat(rigged(), "fame");
-        assert.strictEqual(state.chosenStat, "fame");
-        assert.strictEqual(state.phase, "lead_bet");
-    });
-
-    it("ignores an invalid stat", function () {
-        const state = chooseStat(rigged(), "charisma");
-        assert.strictEqual(state.chosenStat, null);
-    });
-
-});
-
-describe("resolveRound", function () {
-
-    it("awards the pot to the higher stat", function () {
-        let state = chooseStat(rigged(), "fame");
-        state = placeLeadBet(state, 10);
-        state = respond(state);
-
-        assert.strictEqual(state.playerCoins, 110);
-        assert.strictEqual(state.cpuCoins, 90);
-        assert.strictEqual(state.roundWinner, "player");
-    });
-
-    it("makes the responder match the leader's bet", function () {
-        let state = chooseStat(rigged(), "fame");
-        state = placeLeadBet(state, 20);
-        state = respond(state);
-
-        assert.strictEqual(state.playerCoins, 120);
-        assert.strictEqual(state.cpuCoins, 80);
-    });
-
-    it("caps the match at the responder's coins (all-in)", function () {
-        let state = Object.assign({}, rigged(), {cpuCoins: 8});
-        state = chooseStat(state, "fame");
-        state = placeLeadBet(state, 20);
-        state = respond(state);
-
-        assert.strictEqual(state.cpuCoins, 0);
-        assert.strictEqual(state.playerCoins, 108);
-    });
-
-    it(
-        "keeps cards in place at the reveal, then moves them on the next round",
-        function () {
-            let state = chooseStat(rigged(), "fame");
-            state = placeLeadBet(state, 5);
-            state = respond(state);
-            assert.strictEqual(state.playerDeck.length, 2);
-
-            state = nextRound(state);
-            assert.strictEqual(state.playerDeck.length, 3);
-            assert.strictEqual(state.cpuDeck.length, 1);
-        }
-    );
-
-    it("records the played cards and result for the reveal", function () {
-        let state = chooseStat(rigged(), "fame");
-        state = placeLeadBet(state, 5);
-        state = respond(state);
-
-        assert.strictEqual(state.revealPlayer.name, "Strong");
-        assert.strictEqual(state.revealCpu.name, "Weak");
-        assert.strictEqual(state.resultKind, "won");
-    });
-
-    it("returns both bets on a draw", function () {
-        const base = rigged();
-        const drawState = Object.assign({}, base, {
-            chosenStat: "popularity",
-            phase: "respond",
-            playerBet: 10,
-            cpuBet: 10
-        });
-        const resolved = resolveRound(drawState);
-
-        assert.strictEqual(resolved.playerCoins, 100);
-        assert.strictEqual(resolved.cpuCoins, 100);
-        assert.strictEqual(resolved.roundWinner, "draw");
-    });
-
-});
-
-describe("fold", function () {
-
-    it("does not move cards or coins at the moment of folding", function () {
-        const state = fold(rigged(), "player");
-        assert.strictEqual(state.playerDeck.length, 2);
-        assert.strictEqual(state.cpuDeck.length, 2);
-        assert.strictEqual(state.playerCoins, 100);
-    });
-
-    it(
-        "hands the folded card to the opponent once the round cycles",
-        function () {
-            const state = nextRound(fold(rigged(), "player"));
-            assert.strictEqual(state.playerDeck.length, 1);
-            assert.strictEqual(state.cpuDeck.length, 3);
-        }
-    );
-
-    it("increments the folder's fold streak", function () {
-        assert.strictEqual(fold(rigged(), "player").playerFolds, 1);
-    });
-
-    it("blocks a third fold once the streak hits the limit", function () {
-        const state = Object.assign({}, rigged(), {playerFolds: 2});
-        assert.strictEqual(canFold(state, "player"), false);
-    });
-
-    it(
-        "cycles the winner's card to the back so it is not repeated",
-        function () {
-            const state = nextRound(fold(rigged(), "cpu"));
-            const after = state.playerDeck[0].name;
-            assert.notStrictEqual(after, "Strong");
-        }
-    );
-
-    it("labels the outcome from the player's point of view", function () {
-        assert.strictEqual(fold(rigged(), "player").resultKind, "folded");
-        assert.strictEqual(fold(rigged(), "cpu").resultKind, "opp_folded");
-    });
-
-});
-
-describe("nextRound", function () {
-
-    it("ends the game when the cpu has no coins", function () {
-        const broke = Object.assign({}, rigged(), {cpuCoins: 0});
-        const ended = nextRound(broke);
-
-        assert.strictEqual(ended.phase, "game_over");
-        assert.strictEqual(ended.winner, "player");
-    });
-
-    it(
-        "continues the game while both sides have cards and coins",
-        function () {
-            const state = rigged();
-            state.phase = "resolved";
-            const ongoing = nextRound(state);
-            assert.strictEqual(ongoing.phase, "choose");
-        }
-    );
-
-});
-
-describe("cpuRespondDecision", function () {
-
-    const facing = function (value, bet, cpuFolds) {
-        let folds = 0;
-        if (cpuFolds) {
-            folds = cpuFolds;
-        }
-
-        const cpuCard = {
-            name: "CPU", flag: "x", tier: "gold", rating: 80,
-            stats: {
-                fame: value, popularity: 50, legacy: 50,
-                power: 50, influence: 50, wealth: 50
-            }
-        };
-        const playerCard = {
-            name: "P", flag: "x", tier: "gold", rating: 80,
-            stats: {
-                fame: 80, popularity: 50, legacy: 50,
-                power: 50, influence: 50, wealth: 50
-            }
-        };
-
-        return {
-            playerDeck: [playerCard],
-            cpuDeck: [cpuCard],
-            playerCoins: 100,
-            cpuCoins: 100,
-            playerFolds: 0,
-            cpuFolds: folds,
+    if (playerValue > cpuValue) {
+        const msg = (
+            playerCard.name + " (" + playerValue + ") beat " +
+            cpuCard.name + " (" + cpuValue + ") on " + stat + ". +" +
+            pot + " coins and a card."
+        );
+        return Object.assign({}, state, base, {
+            playerCoins: state.playerCoins - state.playerBet + pot,
+            cpuCoins: state.cpuCoins - state.cpuBet,
             turn: "player",
-            phase: "respond",
-            chosenStat: "fame",
-            playerBet: bet,
-            cpuBet: 0,
-            pot: 0,
-            roundWinner: null,
-            winner: null,
-            message: ""
-        };
-    };
+            roundWinner: "player",
+            resultKind: "won",
+            message: msg
+        });
+    }
 
-    it("matches when the card clears the threshold", function () {
-        const state = facing(90, 25, 0);
-        const decision = cpuRespondDecision(state, 0.99);
-        assert.strictEqual(decision.action, "match");
-    });
-
-    it("folds a weak card to a big bet (no bluff)", function () {
-        const state = facing(30, 25, 0);
-        const decision = cpuRespondDecision(state, 0.99);
-        assert.strictEqual(decision.action, "fold");
-    });
-
-    it("demands a higher stat as the bet grows", function () {
-        const lowBetState = facing(50, MIN_BET, 0);
-        const highBetState = facing(50, MAX_BET, 0);
-
-        const decisionLow = cpuRespondDecision(lowBetState, 0.99);
-        const decisionHigh = cpuRespondDecision(highBetState, 0.99);
-
-        assert.strictEqual(decisionLow.action, "match");
-        assert.strictEqual(decisionHigh.action, "fold");
-    });
-
-    it("bluff-calls below the threshold on a low roll", function () {
-        const state = facing(30, 25, 0);
-        const decision = cpuRespondDecision(state, 0.01);
-        assert.strictEqual(decision.action, "match");
-    });
-
-    it("is forced to play once the fold streak is maxed", function () {
-        const state = facing(10, 25, 2);
-        const decision = cpuRespondDecision(state, 0.99);
-        assert.strictEqual(decision.action, "match");
-    });
-
-});
-
-describe("cpuLead", function () {
-
-    const leadState = function (highStat) {
-        const cpuCard = {
-            name: "CPU", flag: "x", tier: "gold", rating: 60,
-            stats: {
-                fame: highStat, popularity: 20, legacy: 20,
-                power: 20, influence: 20, wealth: 20
-            }
-        };
-        const playerCard = {
-            name: "P", flag: "x", tier: "gold", rating: 80,
-            stats: {
-                fame: 80, popularity: 50, legacy: 50,
-                power: 50, influence: 50, wealth: 50
-            }
-        };
-        
-        return {
-            playerDeck: [playerCard],
-            cpuDeck: [cpuCard],
-            playerCoins: 100,
-            cpuCoins: 100,
-            playerFolds: 0,
-            cpuFolds: 0,
+    if (cpuValue > playerValue) {
+        const msg = (
+            cpuCard.name + " (" + cpuValue + ") beat " +
+            playerCard.name + " (" + playerValue + ") on " + stat + ". " +
+            "You lose " + state.playerBet + " coins and a card."
+        );
+        return Object.assign({}, state, base, {
+            cpuCoins: state.cpuCoins - state.cpuBet + pot,
+            playerCoins: state.playerCoins - state.playerBet,
             turn: "cpu",
-            phase: "choose",
-            chosenStat: null,
-            playerBet: 0,
-            cpuBet: 0,
-            pot: 0,
-            roundWinner: null,
-            winner: null,
-            message: ""
+            roundWinner: "cpu",
+            resultKind: "lost",
+            message: msg
+        });
+    }
+
+    const msg = (
+        "Draw on " + stat + " (" + playerValue + "). " +
+        "Your bet and card stay with you; same for the house."
+    );
+    return Object.assign({}, state, base, {
+        pot: 0,
+        roundWinner: "draw",
+        resultKind: "draw",
+        message: msg
+    });
+};
+
+const cycleDecks = function (state) {
+    const playerCard = state.playerDeck[0];
+    const cpuCard = state.cpuDeck[0];
+    const playerRest = state.playerDeck.slice(1);
+    const cpuRest = state.cpuDeck.slice(1);
+
+    if (state.roundWinner === "player") {
+        return {
+            playerDeck: playerRest.concat([playerCard, cpuCard]),
+            cpuDeck: cpuRest
         };
+    }
+    if (state.roundWinner === "cpu") {
+        return {
+            playerDeck: playerRest,
+            cpuDeck: cpuRest.concat([cpuCard, playerCard])
+        };
+    }
+    return {
+        playerDeck: playerRest.concat([playerCard]),
+        cpuDeck: cpuRest.concat([cpuCard])
+    };
+};
+
+const respond = function (state) {
+    if (state.phase !== "respond") {
+        return state;
+    }
+    let leaderBet;
+    if (state.turn === "player") {
+        leaderBet = state.playerBet;
+    } else {
+        leaderBet = state.cpuBet;
+    }
+
+    const responder = other(state.turn);
+    let coins;
+    let betField;
+
+    if (responder === "player") {
+        coins = state.playerCoins;
+        betField = "playerBet";
+    } else {
+        coins = state.cpuCoins;
+        betField = "cpuBet";
+    }
+
+    const matched = Math.min(leaderBet, coins);
+    const nextState = Object.assign({}, state);
+    nextState[betField] = matched;
+
+    return resolveRound(nextState);
+};
+
+const fold = function (state, who) {
+    const base = {
+        playerBet: 0,
+        cpuBet: 0,
+        pot: 0,
+        lastFold: who,
+        revealPlayer: state.playerDeck[0],
+        revealCpu: state.cpuDeck[0],
+        revealStat: state.chosenStat,
+        phase: "resolved"
     };
 
-    it("bets to its strength on a normal (non-bluff) roll", function () {
-        const state = leadState(40);
-        const led = cpuLead(state, 0.99);
-        assert.ok(led.cpuBet < MAX_BET);
-        assert.strictEqual(led.chosenStat, "fame");
+    if (who === "player") {
+        const surrendered = state.playerDeck[0];
+        const msg = "You folded. " + surrendered.name + " goes to the house.";
+        return Object.assign({}, state, base, {
+            playerFolds: state.playerFolds + 1,
+            turn: "cpu",
+            roundWinner: "cpu",
+            resultKind: "folded",
+            message: msg
+        });
+    }
+
+    const surrendered = state.cpuDeck[0];
+    const msg = "The house folded. " + surrendered.name + " comes to you.";
+    return Object.assign({}, state, base, {
+        cpuFolds: state.cpuFolds + 1,
+        turn: "player",
+        roundWinner: "player",
+        resultKind: "opp_folded",
+        message: msg
     });
+};
 
-    it("shoves a big bluff bet on a low roll", function () {
-        const state = leadState(40);
-        assert.strictEqual(cpuLead(state, 0.01).cpuBet, MAX_BET);
+const cpuRespondDecision = function (state, roll) {
+    const value = state.cpuDeck[0].stats[state.chosenStat];
+    let leaderBet;
+
+    if (state.turn === "player") {
+        leaderBet = state.playerBet;
+    } else {
+        leaderBet = state.cpuBet;
+    }
+
+    const required = CPU_CALL_BASE + (leaderBet - MIN_BET) * CPU_CALL_PER_COIN;
+    const mustPlay = (state.cpuFolds >= MAX_FOLD_STREAK);
+
+    if (value >= required || mustPlay) {
+        return {action: "match"};
+    }
+    if (roll < CPU_CALL_BLUFF_CHANCE) {
+        return {action: "match"};
+    }
+    return {action: "fold"};
+};
+
+const nextRound = function (state) {
+    const decks = cycleDecks(state);
+    const cleared = {
+        playerDeck: decks.playerDeck,
+        cpuDeck: decks.cpuDeck,
+        chosenStat: null,
+        pot: 0,
+        roundWinner: null,
+        lastFold: null
+    };
+
+    if (decks.playerDeck.length === 0 || state.playerCoins <= 0) {
+        return Object.assign({}, state, cleared, {
+            phase: "game_over",
+            winner: "cpu",
+            message: "Game over, the House Won."
+        });
+    }
+
+    if (decks.cpuDeck.length === 0 || state.cpuCoins <= 0) {
+        return Object.assign({}, state, cleared, {
+            phase: "game_over",
+            winner: "player",
+            message: "Game over, You win!"
+        });
+    }
+
+    let msg = "CPU won.";
+    if (state.turn === "player") {
+        msg = "You won, choose a stat.";
+    }
+
+    return Object.assign({}, state, cleared, {
+        phase: "choose",
+        message: msg
     });
+};
 
-    it("scales the leading bet up as the best stat improves", function () {
-        const lowBet = cpuLead(leadState(80), 0.99).cpuBet;
-        const highBet = cpuLead(leadState(95), 0.99).cpuBet;
-        assert.ok(lowBet < highBet);
-    });
+const canFold = function (state, who) {
+    let folds;
+    if (who === "player") {
+        folds = state.playerFolds;
+    } else {
+        folds = state.cpuFolds;
+    }
+    return folds < MAX_FOLD_STREAK;
+};
 
-});
-
-describe("cpuLeadBet", function () {
-
-    it("bets the minimum at or below the floor value", function () {
-        assert.strictEqual(cpuLeadBet(75), MIN_BET);
-        assert.strictEqual(cpuLeadBet(60), MIN_BET);
-        assert.strictEqual(cpuLeadBet(10), MIN_BET);
-    });
-
-    it("bets the maximum at or above the ceiling value", function () {
-        assert.strictEqual(cpuLeadBet(99), MAX_BET);
-        assert.strictEqual(cpuLeadBet(120), MAX_BET);
-    });
-
-    it("scales smoothly in between", function () {
-        const mid = cpuLeadBet(87);
-        assert.ok(mid > MIN_BET && mid < MAX_BET);
-        assert.ok(cpuLeadBet(80) < cpuLeadBet(90));
-    });
-
-});
-
-describe("helpers", function () {
-
-    it("other() flips the player", function () {
-        assert.strictEqual(other("player"), "cpu");
-        assert.strictEqual(other("cpu"), "player");
-    });
-
-    it("clampBet() keeps bets inside the legal band", function () {
-        assert.strictEqual(clampBet(1, 100), MIN_BET);
-        assert.strictEqual(clampBet(999, 100), MAX_BET);
-        assert.strictEqual(clampBet(3, 3), 3);
-    });
-
-});
+export {
+    getCards,
+    getStatKeys,
+    highestStat,
+    cpuLeadBet,
+    newGame,
+    chooseStat,
+    placeLeadBet,
+    cpuLead,
+    respond,
+    resolveRound,
+    fold,
+    cpuRespondDecision,
+    nextRound,
+    canFold,
+    other,
+    clampBet,
+    MIN_BET,
+    MAX_BET,
+    MAX_FOLD_STREAK,
+    STARTING_COINS
+};

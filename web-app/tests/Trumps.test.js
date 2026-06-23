@@ -1,14 +1,3 @@
-/*jslint node*/
-import {
-    placeLeadBet,
-    respond,
-}
- from "./Trumps.js";
-
-const describe = global.describe;
-const it = global.it;
-const assert = global.assert;
-
 import {
     newGame,
     chooseStat,
@@ -34,13 +23,13 @@ import assert from "assert";
 const rigged = function () {
     const strong = {name: "Strong", flag: "🇬🇧", tier: "gold", rating: 90,
         stats: {fame: 90, popularity: 50, legacy: 50, power: 50, influence: 50,
-            wealth: 50}};
+        wealth: 50}};
     const weak = {name: "Weak", flag: "🇺🇸", tier: "gold", rating: 50,
         stats: {fame: 10, popularity: 50, legacy: 50, power: 50, influence: 50,
-            wealth: 50}};
+        wealth: 50}};
     return {
-        playerDeck: [strong, {strong, name: "P2"}],
-        cpuDeck: [weak, {weak, name: "C2"}],
+        playerDeck: [strong, {...strong, name: "P2"}],
+        cpuDeck: [weak, {...weak, name: "C2"}],
         playerCoins: 100,
         cpuCoins: 100,
         playerFolds: 0,
@@ -112,7 +101,7 @@ describe("resolveRound", function () {
     });
 
     it("caps the match at the responder's coins (all-in)", function () {
-        let state = Object.assign({}, rigged(), { cpuCoins: 8 });
+        let state = {...rigged(), cpuCoins: 8};
         state = chooseStat(state, "fame");
         state = placeLeadBet(state, 20);   // player leads 20
         state = respond(state);            // cpu can only match 8 => pot 28
@@ -126,8 +115,8 @@ describe("resolveRound", function () {
         state = placeLeadBet(state, 5);
         state = respond(state);
         assert.strictEqual(state.playerDeck.length, 2); // unchanged at reveal
-        state = nextRound(state);                       // now the cards cycle
-        assert.strictEqual(state.playerDeck.length, 3); // winner gains a card
+        state = nextRound(state);                        // now the cards cycle
+        assert.strictEqual(state.playerDeck.length, 3);  // winner gains a card
         assert.strictEqual(state.cpuDeck.length, 1);
     });
 
@@ -142,12 +131,8 @@ describe("resolveRound", function () {
 
     it("returns both bets on a draw", function () {
         const base = rigged();
-        const drawState = Object.assign({}, base, {
-        chosenStat: "popularity",
-        phase: "respond",
-        playerBet: 10,
-        cpuBet: 10
-    });
+        const drawState = {...base, chosenStat: "popularity",
+            phase: "respond", playerBet: 10, cpuBet: 10};
         const resolved = resolveRound(drawState);
         assert.strictEqual(resolved.playerCoins, 100);
         assert.strictEqual(resolved.cpuCoins, 100);
@@ -177,14 +162,14 @@ describe("fold", function () {
     });
 
     it("blocks a third fold once the streak hits the limit", function () {
-    const state = Object.assign({}, rigged(), {playerFolds: 2});
-    assert.strictEqual(canFold(state, "player"), false);
+        assert.strictEqual(canFold({...rigged(), playerFolds: 2}, "player"),
+        false);
     });
 
     it("cycles the winner's card to the back so it is not repeated",
         function () {
         const after = nextRound(fold(rigged(), "cpu")).playerDeck[0].name;
-        assert.notStrictEqual(after, "Strong");
+        assert.notStrictEqual(after, "Strong");     // a fresh card now leads
     });
 
     it("labels the outcome from the player's point of view", function () {
@@ -197,20 +182,16 @@ describe("fold", function () {
 describe("nextRound", function () {
 
     it("ends the game when the cpu has no coins", function () {
-        const broke = Object.assign({}, rigged(), {cpuCoins: 0});
+        const broke = {...rigged(), cpuCoins: 0};
         const ended = nextRound(broke);
         assert.strictEqual(ended.phase, "game_over");
         assert.strictEqual(ended.winner, "player");
     });
 
-    it("continues the game while both sides have cards and coins",
-    function () {
-        const state = rigged();
-        state.phase = "resolved";
-        const ongoing = nextRound(state);
+    it("continues the game while both sides have cards and coins", function () {
+        const ongoing = nextRound({...rigged(), phase: "resolved"});
         assert.strictEqual(ongoing.phase, "choose");
-        }
-    );
+    });
 
 });
 
@@ -255,13 +236,13 @@ describe("cpuRespondDecision", function () {
     });
 
     it("bluff-calls below the threshold on a low roll", function () {
-        assert.strictEqual(cpuRespondDecision(facing(30, 25, 0), 0.01).action,
-        "match");
+        assert.strictEqual(cpuRespondDecision(facing(30, 25, 0),
+        0.01).action, "match");
     });
 
     it("is forced to play once the fold streak is maxed", function () {
-        assert.strictEqual(cpuRespondDecision(facing(10, 25, 2), 0.99).action,
-        "match");
+        assert.strictEqual(cpuRespondDecision(facing(10, 25, 2),
+        0.99).action, "match");
     });
 
 });
@@ -275,7 +256,7 @@ describe("cpuLead", function () {
         return {
             playerDeck: [{name: "P", flag: "x", tier: "gold", rating: 80,
                 stats: {fame: 80, popularity: 50, legacy: 50, power: 50,
-                influence: 50, wealth: 50}}],
+                    influence: 50, wealth: 50}}],
             cpuDeck: [cpuCard],
             playerCoins: 100, cpuCoins: 100, playerFolds: 0, cpuFolds: 0,
             turn: "cpu", phase: "choose", chosenStat: null, playerBet: 0,
