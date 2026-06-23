@@ -1,11 +1,9 @@
-/* ─────────────────────────────────────────────────────────────────────────
-   Celebrity Trumps — stadium / FUT-card styling
-   Palette:  pitch  #0a2a1c / #0e3b27   felt green
-             gold   #f6d873 / #c79a3a   metal trim
-             bone   #f4eddc             card text on dark
-             ink    #1c1a14             card text on gold
-   Type:     "Oswald" condensed display (ratings, names) via system fallback
-   ───────────────────────────────────────────────────────────────────────── */
+/* Celebrity Trumps stadium and FUT-card styling
+   Palette:  pitch  #0a2a1c / #0e3b27
+             gold   #f6d873 / #c79a3a
+             bone   #f4eddc
+             ink    #1c1a14
+   Type:     "Oswald" condensed display (ratings, names)*/
 
 @import url(
     "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
@@ -282,9 +280,7 @@ body {
 }
 .next-up-hidden .next-label { color: rgba(244, 237, 220, 0.3); }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   The cards
-   ───────────────────────────────────────────────────────────────────────── */
+/* ── The cards ───────────────────────────────────────────────────────── */ */
 .card-mount { perspective: 800px; }
 
 .card {
@@ -377,7 +373,7 @@ body {
 .card-back-mini { width: 150px; min-height: 200px; }
 .card-back-mini .mono { font-size: 1.4rem; }
 
-/* Hidden CPU stats */
+/* CPU stats */
 @keyframes reveal-win {
     from {
         box-shadow: 0 0 0 5px var(--win), 0 0 22px 4px rgba(47, 224, 138, 0.5);

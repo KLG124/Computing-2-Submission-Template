@@ -14,7 +14,7 @@
  * the deck and therefore uses randomness by necessity.
  *
  * @module CelebTrumps
- * @author Kaiyu
+ * @author Kaiyu Gaunt
  * @version 2025/26
  */
 
