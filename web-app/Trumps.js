@@ -572,6 +572,7 @@ const resolveRound = function (state) {
     const playerValue = playerCard.stats[stat];
     const cpuValue = cpuCard.stats[stat];
     const pot = state.playerBet + state.cpuBet;
+    let msg = "";
 
     const base = {
         pot,
@@ -587,7 +588,7 @@ const resolveRound = function (state) {
     };
 
     if (playerValue > cpuValue) {
-        const msg = (
+        msg = (
             playerCard.name + " (" + playerValue + ") beat " +
             cpuCard.name + " (" + cpuValue + ") on " + stat + ". +" +
             pot + " coins and a card."
@@ -603,7 +604,7 @@ const resolveRound = function (state) {
     }
 
     if (cpuValue > playerValue) {
-        const msg = (
+        msg = (
             cpuCard.name + " (" + cpuValue + ") beat " +
             playerCard.name + " (" + playerValue + ") on " + stat + ". " +
             "You lose " + state.playerBet + " coins and a card."
@@ -618,7 +619,7 @@ const resolveRound = function (state) {
         });
     }
 
-    const msg = (
+    msg = (
         "Draw on " + stat + " (" + playerValue + "). " +
         "Your bet and card stay with you; same for the house."
     );
@@ -685,6 +686,7 @@ const respond = function (state) {
 };
 
 const fold = function (state, who) {
+    let msg = "";
     const base = {
         playerBet: 0,
         cpuBet: 0,
@@ -698,7 +700,7 @@ const fold = function (state, who) {
 
     if (who === "player") {
         const surrendered = state.playerDeck[0];
-        const msg = "You folded. " + surrendered.name + " goes to the house.";
+        msg = "You folded." + surrendered.name + "goes to the house.";
         return Object.assign({}, state, base, {
             playerFolds: state.playerFolds + 1,
             turn: "cpu",
@@ -709,7 +711,7 @@ const fold = function (state, who) {
     }
 
     const surrendered = state.cpuDeck[0];
-    const msg = "The house folded. " + surrendered.name + " comes to you.";
+    msg = "The house folded. " + surrendered.name + " comes to you.";
     return Object.assign({}, state, base, {
         cpuFolds: state.cpuFolds + 1,
         turn: "player",
