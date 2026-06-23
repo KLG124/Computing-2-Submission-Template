@@ -3,121 +3,136 @@
 <!doctype html> <!-- This first line tells browsers to expect modern standard html 5 -->
 <html lang="en-gb"> <!-- This is indicates the page is written in British English, useful for accessibility -->
 <meta charset="utf-8"> <!-- This indicates how the file is encoded. utf-8 is standard -->
-<title>Your Web-app Title</title> <!-- All pages need a title, this will be displayed in the browser's title bar -->
+<title>Celebrity Trumps</title> <!-- All pages need a title, this will be displayed in the browser's title bar -->
 <link rel="stylesheet" href="default.css"> <!-- Import style sheet – default.css -->
 <link rel="icon" href="./assets/favicon.png"> <!-- Import 'Favorites Icon' – favicon.png -->
 <script type="module" src="main.js"></script> <!-- Load the main script. Must be type="module". Have only one of these -->
 
-<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Celebrity Top Trumps</title>
+    <title>Celebrity Trumps</title>
     <link rel="stylesheet" href="default.css">
+    <link rel="icon" href="./assets/favicon.png">
+    <script type="module" src="main.js" defer></script>
 </head>
 <body>
 
-<header>
-    <h1>Celebrity Top Trumps</h1>
-    <p>Choose a stat, place your bet, and beat the CPU!</p>
+<header class="topbar">
+    <h1 class="wordmark">Celebrity&nbsp;<span>Trumps</span></h1>
+    <p class="tagline">Bet on fame. Bluff. Take the pot.</p>
 </header>
 
-<main>
+<!-- Start screen -->
+<section id="start-screen" class="start-screen">
+    <div class="start-card">
+        <p class="start-blurb">
+            52 icons are shuffled and split between you and the house.
+            Pick a stat, place a bet from 5 to 25 coins, and force the call, 
+            fold or bluff. Clean out the House's coins or cards to win.
+        </p>
+        <button id="start-btn" class="btn btn-primary btn-lg">
+            Start game
+        </button>
+    </div>
+</section>
 
-    <!-- Score bar -->
-    <section id="scorebar" aria-label="Game stats">
-        <div class="score-block">
-            <span class="score-label">Your coins</span>
-            <span class="score-value" id="player-coins">100</span>
+<!-- Game table -->
+<main id="table" class="table" hidden>
+
+    <!-- Player side -->
+    <aside class="side side-player">
+        <div class="side-head">
+            <span class="side-name">You</span>
+            <div class="meters">
+                <span class="meter meter-coins">
+                    <b id="player-coins">100</b> coins
+                </span>
+                <span class="meter meter-cards">
+                    <b id="player-cards">26</b> cards
+                </span>
+                <span class="meter meter-folds">
+                    Folds <b id="player-folds">0</b>/2
+                </span>
+            </div>
         </div>
-        <div class="score-block">
-            <span class="score-label">Your cards</span>
-            <span class="score-value" id="player-cards">16</span>
+        <div id="player-card" class="card-mount" 
+             aria-label="Your current card"></div>
+        <div class="next-up">
+            <span class="next-label">Next up</span>
+            <div id="player-next" class="card-mount card-mount-mini" 
+                 aria-label="Your next card"></div>
         </div>
-        <div class="score-block fold-block">
-            <span class="score-label">Your folds</span>
-            <span class="score-value" id="player-folds">0</span>
-            <span class="score-sub">/ 2 max</span>
+    </aside>
+
+    <!-- Center column -->
+    <section class="center">
+        <div id="turn-banner" class="turn-banner">Your lead</div>
+
+        <div id="pot" class="pot" hidden>
+            <span class="pot-label">Pot</span>
+            <span id="pot-amount" class="pot-amount">0</span>
         </div>
-        <div class="score-block">
-            <span class="score-label">CPU coins</span>
-            <span class="score-value" id="cpu-coins">100</span>
+
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+
+        <!-- Choose a stat -->
+        <div id="panel-choose" class="panel" hidden>
+            <p id="choose-title" class="panel-title">
+                Choose a stat to compare
+            </p>
+            <div id="stat-buttons" class="stat-buttons"></div>
         </div>
-        <div class="score-block">
-            <span class="score-label">CPU cards</span>
-            <span class="score-value" id="cpu-cards">16</span>
+
+        <!-- Place / match a bet -->
+        <div id="panel-bet" class="panel" hidden>
+            <p id="bet-prompt" class="panel-title">Your bet amount</p>
+            <div id="bet-row" class="bet-row">
+                <input type="range" id="bet-slider" min="5" max="25" value="5"
+                       aria-label="Bet amount">
+                <output id="bet-value" class="bet-value">5</output>
+            </div>
+            <div class="panel-actions">
+                <button id="bet-confirm" class="btn btn-primary">Bet</button>
+                <button id="fold-btn" class="btn btn-ghost">Fold</button>
+            </div>
         </div>
-        <div class="score-block fold-block">
-            <span class="score-label">CPU folds</span>
-            <span class="score-value" id="cpu-folds">0</span>
-            <span class="score-sub">/ 2 max</span>
+
+        <!-- Between rounds / game over -->
+        <div id="panel-over" class="panel" hidden>
+            <p id="over-title" class="over-title"></p>
+            <button id="again-btn" class="btn btn-primary btn-lg">
+                Play again
+            </button>
         </div>
     </section>
 
-    <!-- Turn indicator -->
-    <p id="turn-label" aria-live="polite"></p>
-
-    <!-- Result message -->
-    <p id="result-msg" role="alert" aria-live="polite"></p>
-
-    <!-- Cards area -->
-    <section id="cards-area" aria-label="Cards in play">
-        <div class="card-slot">
-            <h2>Your card</h2>
-            <div id="player-card"></div>
+    <!-- CPU side -->
+    <aside class="side side-cpu">
+        <div class="side-head">
+            <span class="side-name">House (CPU)</span>
+            <div class="meters">
+                <span class="meter meter-coins">
+                    <b id="cpu-coins">100</b> coins
+                </span>
+                <span class="meter meter-cards">
+                    <b id="cpu-cards">26</b> cards
+                </span>
+                <span class="meter meter-folds">
+                    Folds <b id="cpu-folds">0</b>/2
+                </span>
+            </div>
         </div>
-        <div class="vs-label" aria-hidden="true">VS</div>
-        <div class="card-slot">
-            <h2>CPU card</h2>
-            <div id="cpu-card"></div>
+        <div id="cpu-card" class="card-mount" 
+             aria-label="CPU current card"></div>
+        <div class="next-up next-up-hidden" aria-hidden="true">
+            <span class="next-label">Hidden</span>
+            <div class="card-mount card-mount-mini card-back-mini"></div>
         </div>
-    </section>
-
-    <!-- Stat info line -->
-    <p id="stat-info"></p>
-
-    <!-- Phase: choose stat -->
-    <section id="phase-choose" aria-label="Choose a stat">
-        <h2>Choose a stat to compare</h2>
-        <div class="btn-group">
-            <button id="btn-fame">Fame</button>
-            <button id="btn-popularity">Popularity</button>
-            <button id="btn-legacy">Legacy</button>
-            <button id="btn-power">Power</button>
-            <button id="btn-influence">Influence</button>
-            <button id="btn-wealth">Wealth</button>
-        </div>
-    </section>
-
-    <!-- Phase: place bet -->
-    <section id="phase-bet" aria-label="Place your bet">
-        <h2>Place your bet</h2>
-        <p>Max bet: <strong id="bet-max">10</strong> coins</p>
-        <div class="bet-controls">
-            <label for="bet-amount">Bet amount: <strong id="bet-display">1</strong></label>
-            <input type="range" id="bet-amount" min="1" max="10" value="1" aria-label="Bet amount">
-        </div>
-        <div class="btn-group">
-            <button id="btn-place-bet">Confirm bet</button>
-            <button id="btn-fold-after-bet" class="btn-danger">Fold (lose card, keep coins)</button>
-        </div>
-    </section>
-
-    <!-- Phase: cpu responding -->
-    <section id="phase-resolve" aria-label="CPU thinking">
-        <p id="cpu-thinking"></p>
-    </section>
-
-    <!-- Phase: game over -->
-    <section id="phase-gameover" aria-label="Game over">
-        <h2>Game Over</h2>
-        <p id="gameover-msg"></p>
-        <button id="btn-restart">Play again</button>
-    </section>
+    </aside>
 
 </main>
 
-<script type="module" src="main.js"></script>
 </body>
 </html>
